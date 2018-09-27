@@ -162,6 +162,16 @@ void print_arr(char arr[4][4]) {
 	}
 }
 
+char s_box_lookup(char byte, char enc) {
+	if (enc) {
+		return s_box_enc[byte] & 0xFF;
+	}
+	else {
+		return s_box_dec[byte] & 0xFF;
+	}
+}
+		
+
 char circ_shift(char byte, char index) {
 	uint16_t word = byte;
 	word = word << index;
@@ -191,4 +201,7 @@ int main( int argc, const char* argv[] )
 	shift_rows(test_arr);
 	printf("SHIFT ROWS:\n");
 	print_arr(test_arr);
+
+	printf("Lookup 0x53 in S-BOX: 0x%02x\n", s_box_lookup(0x53, 1) & 0xFF);
 }
+
