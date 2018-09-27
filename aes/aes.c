@@ -124,6 +124,21 @@ void print_arr(char arr[4][4]) {
 	}
 }
 
+char circ_shift(char byte, char index) {
+	uint16_t word = byte;
+	word = word << index;
+	char fin = (word & 0x00FF) | ((word & 0xFF00) >> 8);
+	return fin;
+}
+
+void shift_rows(char arr[4][4]) {
+	for (int r = 0; r < 4; r++) {
+		for (int c = 0; c < 4; c++) {
+			arr[r][c] = circ_shift(arr[r][c], r);
+		}
+	}
+}
+
 int main( int argc, const char* argv[] )
 {
 	char test_arr[4][4] = {
@@ -132,6 +147,10 @@ int main( int argc, const char* argv[] )
 		{0x01, 0x02, 0x03, 0x04},
 		{0x01, 0x02, 0x03, 0x04}
 	};
-
+	printf("ORIGINAL:\n");
+	print_arr(test_arr);
+	
+	shift_rows(test_arr);
+	printf("SHIFT ROWS:\n");
 	print_arr(test_arr);
 }
