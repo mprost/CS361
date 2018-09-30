@@ -170,7 +170,6 @@ char s_box_lookup(char byte, char enc) {
 		return s_box_dec[byte] & 0xFF;
 	}
 }
-		
 
 char circ_shift(char byte, char index) {
 	uint16_t word = byte;
@@ -179,11 +178,41 @@ char circ_shift(char byte, char index) {
 	return fin;
 }
 
-void shift_rows(char arr[4][4]) {
+void shift_rows(char state[4][4]) {
 	for (int r = 0; r < 4; r++) {
 		for (int c = 0; c < 4; c++) {
-			arr[r][c] = circ_shift(arr[r][c], r);
+			state[r][c] = circ_shift(state[r][c], r);
 		}
+	}
+}
+
+void mix_columns(char state[4][4]) {
+	char state_orig[4][4];
+	for (int c = 0; c < 4; c++) {
+		for (int r = 0; r < 4; r++) {
+			state_orig[r][c] = state[r][c];
+		}
+	}
+	for (int c = 0; c < 4; c++) {
+		state[0][c] = mul2[state_orig[0][c]] ^ mul3[state_orig[1][c]] ^ state_orig[2][c] ^ state_orig[3][c];
+		state[1][c] = state_orig[0][c] ^ mul2[state_orig[1][c]] ^ mul3[state_orig[2][c]] ^ state_orig[3][c];
+		state[2][c] = state_orig[0][c] ^ state_orig[1][c] ^ mul2[state_orig[2][c]] ^ mul3[state_orig[3][c]];
+		state[3][c] = mul3[state_orig[0][c]] ^ state_orig[1][c] ^ state_orig[2][c] ^ mul2[state_orig[3][c]]; 
+	}
+}
+
+void inv_mix_columns(char state[4][4]) {
+	char state_orig[4][4];
+	for (int c = 0; c < 4; c++) {
+		for (int r = 0; r < 4; r++) {
+			state_orig[r][c] = state[r][c];
+		}
+	}
+	for (int c = 0; c < 4; c++) {
+		state[0][c] = mul14[state_orig[0][c]] ^ mul11[state_orig[1][c]] ^ mul13[state_orig[2][c]] ^ mul9[state_orig[3][c]];
+		state[1][c] = mul9[state_orig[0][c]] ^ mul14[state_orig[1][c]] ^ mul11[state_orig[2][c]] ^ mul13[state_orig[3][c]];
+		state[2][c] = mul13[state_orig[0][c]] ^ mul9[state_orig[1][c]] ^ mul14[state_orig[2][c]] ^ mul11[state_orig[3][c]];
+		state[3][c] = mul11[state_orig[0][c]] ^ mul13[state_orig[1][c]] ^ mul9[state_orig[2][c]] ^ mul14[state_orig[3][c]];
 	}
 }
 
@@ -203,5 +232,13 @@ int main( int argc, const char* argv[] )
 	print_arr(test_arr);
 
 	printf("Lookup 0x53 in S-BOX: 0x%02x\n", s_box_lookup(0x53, 1) & 0xFF);
+
+	printf("MIX COLUMNS\n");
+	mix_columns(test_arr);
+	print_arr(test_arr);
+	
+	printf("INV MIX COLUMNS\n");
+	inv_mix_columns(test_arr);
+	print_arr(test_arr);
 }
 
