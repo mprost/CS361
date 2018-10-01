@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+uint16_t Nb;
+uint16_t Nk;
+uint16_t KeyLength;
+uint16_t Nr;
+
 char mul2[256] = {
 	0x00, 0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x0e, 0x10, 0x12, 0x14, 0x16, 0x18, 0x1a, 0x1c, 0x1e,
 	0x20, 0x22, 0x24, 0x26, 0x28, 0x2a, 0x2c, 0x2e, 0x30, 0x32, 0x34, 0x36, 0x38, 0x3a, 0x3c, 0x3e,
@@ -216,6 +221,20 @@ void inv_mix_columns(char state[4][4]) {
 	}
 }
 
+void addRoundKey(char state[4][4], uint32_t w[Nb*(Nr+1)], uint16_t round) {
+	for (int c = 0; c < 4; c++) {
+		uint32_t word = w[round * Nb + c];
+		char a0 = (word >> 0) & 0xFF;
+		char a1 = (word >> 8) & 0xFF;
+		char a2 = (word >> 16) & 0xFF;
+		char a3 = (word >> 24) & 0xFF;
+		state[0][c] ^= a0;
+		state[1][c] ^= a1;
+		state[2][c] ^= a2;
+		state[3][c] ^= a3;
+	}
+}
+
 uint32_t buildword(char a0, char a1, char a2, char a3) {
 	uint32_t ret = 0;
 	ret |= a0;
@@ -228,9 +247,9 @@ uint32_t buildword(char a0, char a1, char a2, char a3) {
 uint32_t subword(uint32_t word) {
 	uint32_t ret = 0;
 	char a0 = (word >> 0) & 0xFF;
-	char a1 = (word >> 1) & 0xFF;
-	char a2 = (word >> 2) & 0xFF;
-	char a3 = (word >> 3) & 0xFF;
+	char a1 = (word >> 8) & 0xFF;
+	char a2 = (word >> 16) & 0xFF;
+	char a3 = (word >> 24) & 0xFF;
 	ret = buildword(s_box_lookup(a0, 1), s_box_lookup(a1, 1), s_box_lookup(a2, 1), s_box_lookup(a3, 1));
 	return ret;
 }
@@ -238,9 +257,9 @@ uint32_t subword(uint32_t word) {
 uint32_t rotword(uint32_t word) {
 	uint32_t ret = 0;
 	char a0 = (word >> 0) & 0xFF;
-	char a1 = (word >> 1) & 0xFF;
-	char a2 = (word >> 2) & 0xFF;
-	char a3 = (word >> 3) & 0xFF;
+	char a1 = (word >> 8) & 0xFF;
+	char a2 = (word >> 16) & 0xFF;
+	char a3 = (word >> 24) & 0xFF;
 	ret = buildword(a1, a2, a3, a0);
 	return ret;
 }
@@ -250,11 +269,6 @@ uint32_t rcon[10] = {
 	0x10000000, 0x20000000, 0x40000000, 0x80000000,
 	0x1B000000, 0x36000000
 };
-
-uint16_t Nb;
-uint16_t Nk;
-uint16_t KeyLength;
-uint16_t Nr;
 
 void key_expansion(char key[4*Nk], uint32_t w[Nb * (Nr + 1)]) {
 	uint32_t temp;
