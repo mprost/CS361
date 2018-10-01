@@ -216,6 +216,72 @@ void inv_mix_columns(char state[4][4]) {
 	}
 }
 
+uint32_t buildword(char a0, char a1, char a2, char a3) {
+	uint32_t ret = 0;
+	ret |= a0;
+	ret |= a1 << 8;
+	ret |= a2 << 16;
+	ret |= a3 << 24;
+	return ret;
+}
+
+uint32_t subword(uint32_t word) {
+	uint32_t ret = 0;
+	char a0 = (word >> 0) & 0xFF;
+	char a1 = (word >> 1) & 0xFF;
+	char a2 = (word >> 2) & 0xFF;
+	char a3 = (word >> 3) & 0xFF;
+	ret = buildword(s_box_lookup(a0, 1), s_box_lookup(a1, 1), s_box_lookup(a2, 1), s_box_lookup(a3, 1));
+	return ret;
+}
+
+uint32_t rotword(uint32_t word) {
+	uint32_t ret = 0;
+	char a0 = (word >> 0) & 0xFF;
+	char a1 = (word >> 1) & 0xFF;
+	char a2 = (word >> 2) & 0xFF;
+	char a3 = (word >> 3) & 0xFF;
+	ret = buildword(a1, a2, a3, a0);
+	return ret;
+}
+
+uint32_t rcon[10] = {
+	0x01000000, 0x02000000, 0x04000000, 0x08000000,
+	0x10000000, 0x20000000, 0x40000000, 0x80000000,
+	0x1B000000, 0x36000000
+};
+
+uint16_t Nb;
+uint16_t Nk;
+uint16_t KeyLength;
+uint16_t Nr;
+
+void key_expansion(char key[4*Nk], uint32_t w[Nb * (Nr + 1)]) {
+	uint32_t temp;
+	int i = 0;
+	while (i < Nk) {
+		temp = 0;
+		temp |= key[4*i];
+		temp |= key[4*i+1] << 8;
+		temp |= key[4*i+2] << 16;
+		temp |= key[4*i+3] << 24;
+		w[i] = temp;
+		i++;
+	}
+
+	while (i < (Nb * (Nr + 1))) {
+		temp = w[i - 1];
+		if ((i % Nk) == 0) {
+			temp = subword(rotword(temp)) ^ rcon[i/Nk];
+		}
+		else if ((Nk > 6) && ((i % Nk) == 4)) {
+			temp = subword(temp);
+		}
+		w[i] = w[i-Nk] ^ temp;
+		i++;
+	}
+}
+
 int main( int argc, const char* argv[] )
 {
 	char test_arr[4][4] = {
