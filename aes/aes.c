@@ -298,9 +298,9 @@ uint8_t** addRoundKey(uint8_t** state, uint32_t* w, uint16_t round) {
 uint32_t buildWord(uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3) {
 	uint32_t ret = 0;
 	ret |= a0;
-	ret |= a1 << 8;
-	ret |= a2 << 16;
-	ret |= a3 << 24;
+	ret |= (a1 << 8);
+	ret |= (a2 << 16);
+	ret |= (a3 << 24);
 	return ret;
 }
 
@@ -320,12 +320,14 @@ uint32_t rotWord(uint32_t word) {
 	uint8_t a1 = (word >> 8) & 0xFF;
 	uint8_t a2 = (word >> 16) & 0xFF;
 	uint8_t a3 = (word >> 24) & 0xFF;
-	ret = buildWord(a1, a2, a3, a0);
+	ret = buildWord(a3, a0, a1, a2);
 	return ret;
 }
 
 uint32_t rcon[11] = {
-	0x00000000, 0x01000000, 0x02000000, 0x04000000, 
+/*	0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a, 
+	0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3, 0x7d, 0xfa, 0xef, 0xc5, 0x91, 0x39
+*/	0x00000000, 0x01000000, 0x02000000, 0x04000000, 
 	0x08000000, 0x10000000, 0x20000000, 0x40000000, 
 	0x80000000, 0x1B000000, 0x36000000
 };
@@ -358,22 +360,6 @@ uint32_t* keyExpansion(uint8_t* key, int size) {
 	return w;
 }
 
-void box_array(uint8_t arr[16], uint8_t mat[4][4]) {
-	for (int r = 0; r < 4; r++) {
-		for (int c = 0; c < 4; c++) {
-			mat[r][c] = arr[r * 4 + c];
-		}
-	}
-}
-
-void unbox_array(uint8_t mat[4][4], uint8_t arr[16]) {
-	for (int r = 0; r < 4; r++) {
-		for (int c = 0; c < 4; c++) {
-			arr[r * 4 + c] = mat[r][c];
-		}
-	}
-}
-
 uint8_t** encrypt128(uint8_t* key, uint8_t* plaintext, uint8_t* ciphertext) {
 	Nb = 4;
 	Nk = 4;
@@ -386,9 +372,12 @@ uint8_t** encrypt128(uint8_t* key, uint8_t* plaintext, uint8_t* ciphertext) {
 	}
 	uint8_t** new_state;
 	uint32_t* key_schedule = keyExpansion(key, Nb * (Nr + 1));
-printf("Key Expansion: 0x");
+printf("Key Expansion: \n");
 for (int i = 0; i < Nb * (Nr + 1); i++) {
-	printf("%02x%02x%02x%02x ", key_schedule[i]&0xff,(key_schedule[i]>>8)&0xff,(key_schedule[i]>>16)&0xff,(key_schedule[i]>>24)&0xff);
+	printf("%08x ", (key_schedule[i]));
+if((i%4)==3){
+printf("\n");
+}
 }
 printf("\n");
 //printf("ORIGINAL\n");
