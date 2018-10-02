@@ -215,7 +215,7 @@ uint8_t** shiftRows(uint8_t** state) {
 	uint8_t** new_state = newMat(4, 4);
 	for (int r = 0; r < 4; r++) {
 		for (int c = 0; c < 4; c++) {
-			new_state[r][c] = circShift(state[r][c], r);
+			new_state[r][c] = state[r][(c + r) % 4];
 		}
 	}
 	return new_state;
@@ -324,24 +324,17 @@ uint32_t rotWord(uint32_t word) {
 	return ret;
 }
 
-uint32_t rcon[11] = {
-/*	0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a, 
-	0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3, 0x7d, 0xfa, 0xef, 0xc5, 0x91, 0x39
-*/	0x00000000, 0x01000000, 0x02000000, 0x04000000, 
-	0x08000000, 0x10000000, 0x20000000, 0x40000000, 
-	0x80000000, 0x1B000000, 0x36000000
+uint32_t rcon[32] = {
+	0x8d000000, 0x01000000, 0x02000000, 0x04000000, 0x08000000, 0x10000000, 0x20000000, 0x40000000, 
+	0x80000000, 0x1b000000, 0x36000000, 0x6c000000, 0xd8000000, 0xab000000, 0x4d000000, 0x9a000000,
+	0x2f000000, 0x5e000000, 0xbc000000, 0x63000000, 0xc6000000, 0x97000000, 0x35000000, 0x6a000000,
+	0xd4000000, 0xb3000000, 0x7d000000, 0xfa000000, 0xef000000, 0xc5000000, 0x91000000, 0x39000000
 };
 
 uint32_t* keyExpansion(uint8_t* key, int size) {
 	uint32_t* w = (uint32_t*)(malloc(sizeof(uint32_t) * size));
-	//uint32_t temp;
 	int i = 0;
-	while (i < Nk) {/*
-		temp = 0;
-		temp |= key[4*i];
-		temp |= key[4*i+1] << 8;
-		temp |= key[4*i+2] << 16;
-		temp |= key[4*i+3] << 24;*/
+	while (i < Nk) {
 		w[i] = buildWord(key[4 * i], key[4 * i + 1], key[4 * i + 2], key[4 * i + 3]);
 		i++;
 	}
@@ -372,7 +365,7 @@ uint8_t** encrypt128(uint8_t* key, uint8_t* plaintext, uint8_t* ciphertext) {
 	}
 	uint8_t** new_state;
 	uint32_t* key_schedule = keyExpansion(key, Nb * (Nr + 1));
-printf("Key Expansion: \n");
+/*printf("Key Expansion: \n");
 for (int i = 0; i < Nb * (Nr + 1); i++) {
 	printf("%08x ", (key_schedule[i]));
 if((i%4)==3){
@@ -405,6 +398,40 @@ printMat(state,4,4);
 //printf("\nADD ROUND KEY\n");
 //printMat(state,4,4);
 	}
+*/
+	new_state = addRoundKey(state, key_schedule, 0);
+	freeMat(state, 4, 4);
+	state = new_state;
+
+	for (int round = 1; round < Nr; round++) {
+		new_state = subBytes(state);
+		freeMat(state, 4, 4);
+		state = new_state;
+
+		new_state = shiftRows(state);
+		freeMat(state, 4, 4);
+		state = new_state;
+
+		new_state = mixColumns(state);
+		freeMat(state, 4, 4);
+		state = new_state;
+
+		new_state = addRoundKey(state, key_schedule, round);
+		freeMat(state, 4, 4);
+		state = new_state;
+	}
+	new_state = subBytes(state);
+	freeMat(state, 4, 4);
+	state = new_state;
+
+	new_state = shiftRows(state);
+	freeMat(state, 4, 4);
+	state = new_state;
+
+	new_state = addRoundKey(state, key_schedule, Nr);
+	freeMat(state, 4, 4);
+	state = new_state;
+
 	free(key_schedule);
 	return state;
 }
