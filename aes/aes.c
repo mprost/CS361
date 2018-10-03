@@ -364,13 +364,12 @@ uint8_t* encrypt128(uint8_t* key, uint8_t* plaintext) {
 	freeMat(state, 4, 4);
 	state = new_state;
 
-	uint8_t* ciphertext = (uint8_t*)(malloc(17));
+	uint8_t* ciphertext = (uint8_t*)(malloc(16));
 	for (int r = 0; r < 4; r++) {
 		for (int c = 0; c < 4; c++) {
 			ciphertext[r * 4 + c] = state[c][r];
 		}
 	}
-	ciphertext[16] = plaintext[16];
 
 	freeMat(state, 4, 4);
 	free(key_schedule);
@@ -442,45 +441,50 @@ int main( int argc, const char* argv[] )
 	const char* mode = argv[5];
 	FILE *fp;
 
-	if (mode[0] == 'e') { // Encryption
-		uint8_t* key = (uint8_t*)(malloc(key_length)); // Read key from file
-		fp = fopen(key_file, "rb");
-		fread(key, key_length, 1, fp);
-		fclose(fp);	
+	uint8_t* key = (uint8_t*)(malloc(key_length)); // Read key from file
+	fp = fopen(key_file, "rb");
+	fread(key, key_length, 1, fp);
+	fclose(fp);
 
-		uint8_t* plaintext = (uint8_t*)(malloc(17)); // Read input from file
-		fp = fopen(input_file, "rb");
-		fseek(fp, 0, SEEK_END);
-		uint16_t input_length = ftell(fp);
-		rewind(fp);
-		if (input_length > 16) {
-			input_length = 16;
-		}
-		fread(plaintext, input_length, 1, fp);
-		pad(plaintext, input_length);
-		fclose(fp);
-
-		uint8_t* ciphertext;
-		if (key_size[0] == '1') { // 128-bit mode
-			ciphertext = encrypt128(key, plaintext);
-		}
-		else { // 256-bit mode
-			ciphertext = encrypt256(key, plaintext);
-		}
-		fp = fopen(output_file, "wb");
-		uint16_t output_length = 16;
-//getLength(ciphertext);
-//printf("len:%d\n", output_length);
-		for (int i = 0; i < output_length; i++) {
-			fputc(ciphertext[i], fp);
-		}
-		fclose(fp);
-
-		printXByteRows(ciphertext, 16);
-
-		free(key);
-		free(plaintext);
-		free(ciphertext);
+	uint8_t* input_data = (uint8_t*)(malloc(17));
+	fp = fopen(input_file, "rb");
+	fseek(fp, 0, SEEK_END);
+	uint16_t input_length = ftell(fp);
+	rewind(fp);
+	if (input_length > 16) {
+		input_length = 16;
 	}
+	fread(input_data, input_length, 1, fp);
+	pad(input_data, input_length);
+	fclose(fp);
+
+	uint8_t* output_data;
+	if (key_size[0] == '1') { // 128-bit mode
+		if (mode[0] == 'e') { // Encryption
+			output_data = encrypt128(key, input_data);
+		}
+		else { // Decryption
+			output_data = decrypt128(key, input_data);
+		}
+	}
+	else { // 256-bit mode
+		if (mode[0] == 'e') { // Encryption
+			output_data = encrypt256(key, input_data);
+		}
+		else { // Decryption
+			output_data = decrypt256(key, input_data);
+		}
+	}
+	fp = fopen(output_file, "wb");
+	for (int i = 0; i < input_length; i++) {
+		fputc(output_data[i], fp);
+	}
+	fclose(fp);
+
+printXByteRows(output_data, 16);
+
+	free(key);
+	free(input_data);
+	free(output_data);
 }
 
