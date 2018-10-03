@@ -476,7 +476,7 @@ int main( int argc, const char* argv[] )
 	}
 	fclose(fp);
 
-printXByteRows(output_data, 16);
+//printXByteRows(output_data, 16);
 
 	free(key);
 	free(input_data);
