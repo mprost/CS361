@@ -199,11 +199,31 @@ uint8_t** subBytes(uint8_t** state) {
 	return new_state;
 }
 
+uint8_t** subBytesInv(uint8_t** state) {
+	uint8_t** new_state = newMat(4, 4);
+	for (int r = 0; r < 4; r++) {
+		for (int c = 0; c < 4; c++) {
+			new_state[r][c] = sBoxLookupInv(state[r][c]);
+		}
+	}
+	return new_state;
+}
+
 uint8_t** shiftRows(uint8_t** state) {
 	uint8_t** new_state = newMat(4, 4);
 	for (int r = 0; r < 4; r++) {
 		for (int c = 0; c < 4; c++) {
 			new_state[r][c] = state[r][(c + r) % 4];
+		}
+	}
+	return new_state;
+}
+
+uint8_t** shiftRowsInv(uint8_t** state) {
+	uint8_t** new_state = newMat(4, 4);
+	for (int r = 0; r < 4; r++) {
+		for (int c = 0; c < 4; c++) {
+			new_state[r][c] = state[r][(4 + c - r) % 4];
 		}
 	}
 	return new_state;
@@ -224,19 +244,19 @@ uint8_t** mixColumns(uint8_t** state) {
 	return new_state;
 }
 
-void inv_mix_columns(uint8_t state[4][4]) {
-	uint8_t state_orig[4][4];
+uint8_t** mixColumnsInv(uint8_t** state) { 
+	uint8_t** new_state = newMat(4, 4);
 	for (int c = 0; c < 4; c++) {
-		for (int r = 0; r < 4; r++) {
-			state_orig[r][c] = state[r][c];
-		}
+		uint8_t s0 = state[0][c];
+		uint8_t s1 = state[1][c];
+		uint8_t s2 = state[2][c];
+		uint8_t s3 = state[3][c];
+		new_state[0][c] = (mul14[s0] ^ mul11[s1] ^ mul13[s2] ^ mul9[s3]);
+		new_state[1][c] = (mul9[s0] ^ mul14[s1] ^ mul11[s2] ^ mul13[s3]);
+		new_state[2][c] = (mul13[s0] ^ mul9[s1] ^ mul14[s2] ^ mul11[s3]);
+		new_state[3][c] = (mul11[s0] ^ mul13[s1] ^ mul9[s2] ^ mul14[s3]);
 	}
-	for (int c = 0; c < 4; c++) {
-		state[0][c] = mul14[state_orig[0][c]] ^ mul11[state_orig[1][c]] ^ mul13[state_orig[2][c]] ^ mul9[state_orig[3][c]];
-		state[1][c] = mul9[state_orig[0][c]] ^ mul14[state_orig[1][c]] ^ mul11[state_orig[2][c]] ^ mul13[state_orig[3][c]];
-		state[2][c] = mul13[state_orig[0][c]] ^ mul9[state_orig[1][c]] ^ mul14[state_orig[2][c]] ^ mul11[state_orig[3][c]];
-		state[3][c] = mul11[state_orig[0][c]] ^ mul13[state_orig[1][c]] ^ mul9[state_orig[2][c]] ^ mul14[state_orig[3][c]];
-	}
+	return new_state;
 }
 
 uint8_t** addRoundKey(uint8_t** state, uint32_t* w, uint16_t round, uint16_t Nb) {
@@ -384,12 +404,75 @@ uint8_t* encrypt256(uint8_t* key, uint8_t* plaintext) {
 	return ciphertext;
 }
 
+uint8_t* decrypt(uint8_t* key, uint8_t* ciphertext, uint16_t Nb, uint16_t Nk, uint16_t Nr) {
+	uint8_t** state = newMat(4, 4);
+	for (int r = 0; r < 4; r++) {
+		for (int c = 0; c < 4; c++) {
+			state[c][r] = ciphertext[r * 4 + c];
+		}
+	}
+	uint8_t** new_state;
+	uint32_t* key_schedule = keyExpansion(key, Nb * (Nr + 1), Nk);
+
+	new_state = addRoundKey(state, key_schedule, Nr, Nb);
+	freeMat(state, 4, 4);
+	state = new_state;
+
+	for (int round = Nr - 1; round > 0; round--) {
+		new_state = shiftRowsInv(state);
+		freeMat(state, 4, 4);
+		state = new_state;
+
+		new_state = subBytesInv(state);
+		freeMat(state, 4, 4);
+		state = new_state;
+
+		new_state = addRoundKey(state, key_schedule, round, Nb);
+		freeMat(state, 4, 4);
+		state = new_state;
+
+		new_state = mixColumnsInv(state);
+		freeMat(state, 4, 4);
+		state = new_state;
+	}
+	new_state = shiftRowsInv(state);
+	freeMat(state, 4, 4);
+	state = new_state;
+
+	new_state = subBytesInv(state);
+	freeMat(state, 4, 4);
+	state = new_state;
+
+	new_state = addRoundKey(state, key_schedule, 0, Nb);
+	freeMat(state, 4, 4);
+	state = new_state;
+
+	uint8_t* plaintext = (uint8_t*)(malloc(16));
+	for (int r = 0; r < 4; r++) {
+		for (int c = 0; c < 4; c++) {
+			plaintext[r * 4 + c] = state[r][c];
+		}
+	}
+
+	freeMat(state, 4, 4);
+	free(key_schedule);
+	return plaintext;
+}
+
 uint8_t* decrypt128(uint8_t* key, uint8_t* ciphertext) {
-return key;
+	uint16_t Nb = 4;
+	uint16_t Nk = 4;
+	uint16_t Nr = 10;
+	uint8_t* plaintext = decrypt(key, ciphertext, Nb, Nk, Nr);
+	return plaintext;
 }
 
 uint8_t* decrypt256(uint8_t* key, uint8_t* ciphertext) {
-return key;
+	uint16_t Nb = 4;
+	uint16_t Nk = 8;
+	uint16_t Nr = 14;
+	uint8_t* plaintext = decrypt(key, ciphertext, Nb, Nk, Nr);
+	return plaintext;
 }
 
 void printXBytes(uint8_t* bytes, uint16_t length) {
@@ -454,7 +537,7 @@ int main( int argc, const char* argv[] )
 	fclose(fp);
 
 	uint8_t* output_data;
-	if (key_size[0] == '1') { // 128-bit mode
+	if (key_size[0] == '1') { // 128B mode
 		if (mode[0] == 'e') { // Encryption
 			output_data = encrypt128(key, input_data);
 		}
@@ -462,7 +545,7 @@ int main( int argc, const char* argv[] )
 			output_data = decrypt128(key, input_data);
 		}
 	}
-	else { // 256-bit mode
+	else { // 256B mode
 		if (mode[0] == 'e') { // Encryption
 			output_data = encrypt256(key, input_data);
 		}
