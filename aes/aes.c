@@ -173,14 +173,14 @@ void freeMat(uint8_t** mat, int num_rows, int num_cols) {
 	free(mat);
 }
 
-void printXChar(uint8_t c) {
+void printXByte(uint8_t c) {
 	printf("0x%02x ", c & 0xFF);
 }
 
 void printMat(uint8_t** mat, int num_rows, int num_cols) {
 	for (int r = 0; r < num_rows; r++) {
 		for (int c = 0; c < num_cols; c++) {
-			printXChar(mat[r][c]);
+			printXByte(mat[r][c]);
 		}
 		printf("\n");
 	}
@@ -204,13 +204,6 @@ uint8_t** subBytes(uint8_t** state) {
 	return new_state;
 }
 
-uint8_t circShift(uint8_t byte, uint8_t index) {
-	uint16_t word = byte;
-	word = word << index;
-	uint8_t shift = (word & 0x00FF) | ((word & 0xFF00) >> 8);
-	return shift;
-}
-
 uint8_t** shiftRows(uint8_t** state) {
 	uint8_t** new_state = newMat(4, 4);
 	for (int r = 0; r < 4; r++) {
@@ -224,42 +217,14 @@ uint8_t** shiftRows(uint8_t** state) {
 uint8_t** mixColumns(uint8_t** state) {
 	uint8_t** new_state = newMat(4, 4);
 	for (int c = 0; c < 4; c++) {
-//printf("\nc: %d\n", c);
-		uint8_t s0 = state[0][c] & 0xFF;
-/*printf("s0: ");
-printXChar(s0);
-printf("\n");*/
-		uint8_t s1 = state[1][c] & 0xFF;
-/*printf("s1: ");
-printXChar(s1);
-printf("\n");*/
-		uint8_t s2 = state[2][c] & 0xFF;
-/*printf("s2: ");
-printXChar(s2);
-printf("\n");*/
-		uint8_t s3 = state[3][c] & 0xFF;
-/*printf("s3: ");
-printXChar(s3);
-printf("\n");*/
-		new_state[0][c] = (mul2[s0] ^ mul3[s1] ^ s2 ^ s3) & 0xFF;
-		new_state[1][c] = (s0 ^ mul2[s1] ^ mul3[s2] ^ s3) & 0xFF;
-		new_state[2][c] = (s0 ^ s1 ^ mul2[s2] ^ mul3[s3]) & 0xFF;
-/*printf("s2: ");
-printXChar(s2);
-printf("\n");
-printf("mul2[s2]: ");
-printXChar(mul2[s2]);
-printf("\n");
-printf("mul2[0xc9]: ");
-printXChar(mul2[0xc9]);
-printf("\n");
-printf("mul3[s3]: ");
-printXChar(mul3[s3]);
-printf("\n");
-printf("new_state[2][c]: ");
-printXChar(new_state[2][c]);
-printf("\n");*/
-		new_state[3][c] = (mul3[s0] ^ s1 ^ s2 ^ mul2[s3]) & 0xFF;
+		uint8_t s0 = state[0][c];
+		uint8_t s1 = state[1][c];
+		uint8_t s2 = state[2][c];
+		uint8_t s3 = state[3][c];
+		new_state[0][c] = (mul2[s0] ^ mul3[s1] ^ s2 ^ s3);
+		new_state[1][c] = (s0 ^ mul2[s1] ^ mul3[s2] ^ s3);
+		new_state[2][c] = (s0 ^ s1 ^ mul2[s2] ^ mul3[s3]);
+		new_state[3][c] = (mul3[s0] ^ s1 ^ s2 ^ mul2[s3]);
 	}
 	return new_state;
 }
@@ -283,10 +248,10 @@ uint8_t** addRoundKey(uint8_t** state, uint32_t* w, uint16_t round) {
 	uint8_t** new_state = newMat(4, 4);
 	for (int c = 0; c < 4; c++) {
 		uint32_t word = w[round * Nb + c];
-		uint8_t a0 = (uint8_t)((word >> 0) & 0xFF);
-		uint8_t a1 = (uint8_t)((word >> 8) & 0xFF);
-		uint8_t a2 = (uint8_t)((word >> 16) & 0xFF);
-		uint8_t a3 = (uint8_t)((word >> 24) & 0xFF);
+		uint8_t a3 = (uint8_t)((word >> 0) & 0xFF);
+		uint8_t a2 = (uint8_t)((word >> 8) & 0xFF);
+		uint8_t a1 = (uint8_t)((word >> 16) & 0xFF);
+		uint8_t a0 = (uint8_t)((word >> 24) & 0xFF);
 		new_state[0][c] = state[0][c] ^ a0;
 		new_state[1][c] = state[1][c] ^ a1;
 		new_state[2][c] = state[2][c] ^ a2;
@@ -353,7 +318,7 @@ uint32_t* keyExpansion(uint8_t* key, int size) {
 	return w;
 }
 
-uint8_t** encrypt128(uint8_t* key, uint8_t* plaintext, uint8_t* ciphertext) {
+uint8_t* encrypt128(uint8_t* key, uint8_t* plaintext) {
 	Nb = 4;
 	Nk = 4;
 	Nr = 10;
@@ -365,40 +330,7 @@ uint8_t** encrypt128(uint8_t* key, uint8_t* plaintext, uint8_t* ciphertext) {
 	}
 	uint8_t** new_state;
 	uint32_t* key_schedule = keyExpansion(key, Nb * (Nr + 1));
-/*printf("Key Expansion: \n");
-for (int i = 0; i < Nb * (Nr + 1); i++) {
-	printf("%08x ", (key_schedule[i]));
-if((i%4)==3){
-printf("\n");
-}
-}
-printf("\n");
-//printf("ORIGINAL\n");
-printMat(state,4,4);
-	for (int round = 0; round < 10; round++) {
-//printf("ROUND: %d\n", round);
-		new_state = subBytes(state);
-		freeMat(state, 4, 4);
-		state = new_state;
-//printf("\nSUB BYTES\n");
-//printMat(state,4,4);
-		new_state = shiftRows(state);
-		freeMat(state, 4, 4);
-		state = new_state;
-//printf("\nSHIFT ROWS\n");
-//printMat(state,4,4);
-		new_state = mixColumns(state);
-		freeMat(state, 4, 4);
-		state = new_state;
-//printf("\nMIX COLUMNS\n");
-//printMat(state,4,4);
-		new_state = addRoundKey(state, key_schedule, round);
-		freeMat(state, 4, 4);
-		state = new_state;
-//printf("\nADD ROUND KEY\n");
-//printMat(state,4,4);
-	}
-*/
+
 	new_state = addRoundKey(state, key_schedule, 0);
 	freeMat(state, 4, 4);
 	state = new_state;
@@ -432,41 +364,123 @@ printMat(state,4,4);
 	freeMat(state, 4, 4);
 	state = new_state;
 
+	uint8_t* ciphertext = (uint8_t*)(malloc(17));
+	for (int r = 0; r < 4; r++) {
+		for (int c = 0; c < 4; c++) {
+			ciphertext[r * 4 + c] = state[c][r];
+		}
+	}
+	ciphertext[16] = plaintext[16];
+
+	freeMat(state, 4, 4);
 	free(key_schedule);
-	return state;
+	return ciphertext;
 }
 
-void encrypt256() {
-
+uint8_t* encrypt256(uint8_t* key, uint8_t* plaintext) {
+return key;
 }
 
-void decrypt128() {
-
+uint8_t* decrypt128(uint8_t* key, uint8_t* ciphertext) {
+return key;
 }
 
-void decrypt256() {
+uint8_t* decrypt256(uint8_t* key, uint8_t* ciphertext) {
+return key;
+}
 
+void printXBytes(uint8_t* bytes, uint16_t length) {
+	for (int i = 0; i < length; i++) {
+		printXByte(bytes[i]);
+	}
+}
+
+void printXByteRows(uint8_t* bytes, uint16_t length) {
+	for (int i = 0; i < length; i++) {
+		printXByte(bytes[i]);
+		if ((i % 4) == 3) {
+			printf("\n");
+		}
+	}
+}
+
+void pad(uint8_t* in, uint16_t length) {
+	if (length > 16) {
+		in[16] = 1;
+	}
+	else {
+		in[16] = 0;
+		for (int i = length; i < 16; i++) {
+			in[i] = (length & 0xff);
+		}
+	}
+}
+
+uint16_t getLength(uint8_t* out) {
+	if (out[16] == 1) {
+		return 16;
+	}
+	else {
+		return out[15];
+	}
 }
 
 int main( int argc, const char* argv[] )
 {
-	uint8_t* key = (uint8_t*)(calloc(0, 16));
-	uint8_t* plaintext = (uint8_t*)(calloc(0, 16));
-	uint8_t* ciphertext = (uint8_t*)(malloc(16));
-
-	uint8_t** state = encrypt128(key, plaintext, ciphertext);
-	free(key);
-	free(plaintext);
-	free(ciphertext);
-	printMat(state, 4, 4);
-	freeMat(state, 4, 4);
+//printf("args:\ncount:%d\n1:%s\n2:%s\n3:%s\n4:%s\n5:%s\n6:%s\n", argc, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+	const char* key_size = argv[1];
+	uint16_t key_length;
+	if (key_size[0] == '1') { // 128-bit mode
+		key_length = 16;
+	}
+	else { // 256-bit mode
+		key_length = 32;
+	}
+	const char* key_file = argv[2];
+	const char* input_file = argv[3];
+	const char* output_file = argv[4];
+	const char* mode = argv[5];
 	FILE *fp;
-	fp = fopen("inputfile", "w");
-	fprintf(fp, "%s", plaintext);
-	fclose(fp);
 
-	fp = fopen("outputfile", "w");
-	fprintf(fp, "%s", ciphertext);
-	fclose(fp);
+	if (mode[0] == 'e') { // Encryption
+		uint8_t* key = (uint8_t*)(malloc(key_length)); // Read key from file
+		fp = fopen(key_file, "rb");
+		fread(key, key_length, 1, fp);
+		fclose(fp);	
+
+		uint8_t* plaintext = (uint8_t*)(malloc(17)); // Read input from file
+		fp = fopen(input_file, "rb");
+		fseek(fp, 0, SEEK_END);
+		uint16_t input_length = ftell(fp);
+		rewind(fp);
+		if (input_length > 16) {
+			input_length = 16;
+		}
+		fread(plaintext, input_length, 1, fp);
+		pad(plaintext, input_length);
+		fclose(fp);
+
+		uint8_t* ciphertext;
+		if (key_size[0] == '1') { // 128-bit mode
+			ciphertext = encrypt128(key, plaintext);
+		}
+		else { // 256-bit mode
+			ciphertext = encrypt256(key, plaintext);
+		}
+		fp = fopen(output_file, "wb");
+		uint16_t output_length = 16;
+//getLength(ciphertext);
+//printf("len:%d\n", output_length);
+		for (int i = 0; i < output_length; i++) {
+			fputc(ciphertext[i], fp);
+		}
+		fclose(fp);
+
+		printXByteRows(ciphertext, 16);
+
+		free(key);
+		free(plaintext);
+		free(ciphertext);
+	}
 }
 
