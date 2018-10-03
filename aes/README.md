@@ -1,6 +1,9 @@
 # AES
 By Matt Prost
 
+## Git Repo
+https://github.com/mprost/CS361/tree/master/aes
+
 ## Instructions For Running
 Step 1: gcc -o aes aes.c 
 
