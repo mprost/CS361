@@ -1,6 +1,18 @@
 # AES
 By Matt Prost
 
+## Instructions For Running
+gcc -o aes aes.c 
+
+./aes [KEY SIZE] [KEY FILENAME] [INPUT FILENAME] [OUTPUT FILENAME] [MODE]
+
+KEY SIZE = {128,256}
+
+MODE = {encrypt,decrypt}
+
+Example:
+
+./aes 256 key256 input256 output256 encrypt
 ## Encryption
 Encryption is implemented in the function
 
