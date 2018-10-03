@@ -1,11 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-uint16_t Nb;
-uint16_t Nk;
-uint16_t KeyLength;
-uint16_t Nr;
-
 uint8_t mul2[256] = {
 	0x00, 0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x0e, 0x10, 0x12, 0x14, 0x16, 0x18, 0x1a, 0x1c, 0x1e,
 	0x20, 0x22, 0x24, 0x26, 0x28, 0x2a, 0x2c, 0x2e, 0x30, 0x32, 0x34, 0x36, 0x38, 0x3a, 0x3c, 0x3e,
@@ -244,7 +239,7 @@ void inv_mix_columns(uint8_t state[4][4]) {
 	}
 }
 
-uint8_t** addRoundKey(uint8_t** state, uint32_t* w, uint16_t round) {
+uint8_t** addRoundKey(uint8_t** state, uint32_t* w, uint16_t round, uint16_t Nb) {
 	uint8_t** new_state = newMat(4, 4);
 	for (int c = 0; c < 4; c++) {
 		uint32_t word = w[round * Nb + c];
@@ -296,7 +291,7 @@ uint32_t rcon[32] = {
 	0xd4000000, 0xb3000000, 0x7d000000, 0xfa000000, 0xef000000, 0xc5000000, 0x91000000, 0x39000000
 };
 
-uint32_t* keyExpansion(uint8_t* key, int size) {
+uint32_t* keyExpansion(uint8_t* key, uint16_t size, uint16_t Nk) {
 	uint32_t* w = (uint32_t*)(malloc(sizeof(uint32_t) * size));
 	int i = 0;
 	while (i < Nk) {
@@ -318,10 +313,7 @@ uint32_t* keyExpansion(uint8_t* key, int size) {
 	return w;
 }
 
-uint8_t* encrypt128(uint8_t* key, uint8_t* plaintext) {
-	Nb = 4;
-	Nk = 4;
-	Nr = 10;
+uint8_t* encrypt(uint8_t* key, uint8_t* plaintext, uint16_t Nb, uint16_t Nk, uint16_t Nr) {
 	uint8_t** state = newMat(4, 4);
 	for (int r = 0; r < 4; r++) {
 		for (int c = 0; c < 4; c++) {
@@ -329,9 +321,9 @@ uint8_t* encrypt128(uint8_t* key, uint8_t* plaintext) {
 		}
 	}
 	uint8_t** new_state;
-	uint32_t* key_schedule = keyExpansion(key, Nb * (Nr + 1));
+	uint32_t* key_schedule = keyExpansion(key, Nb * (Nr + 1), Nk);
 
-	new_state = addRoundKey(state, key_schedule, 0);
+	new_state = addRoundKey(state, key_schedule, 0, Nb);
 	freeMat(state, 4, 4);
 	state = new_state;
 
@@ -348,7 +340,7 @@ uint8_t* encrypt128(uint8_t* key, uint8_t* plaintext) {
 		freeMat(state, 4, 4);
 		state = new_state;
 
-		new_state = addRoundKey(state, key_schedule, round);
+		new_state = addRoundKey(state, key_schedule, round, Nb);
 		freeMat(state, 4, 4);
 		state = new_state;
 	}
@@ -360,7 +352,7 @@ uint8_t* encrypt128(uint8_t* key, uint8_t* plaintext) {
 	freeMat(state, 4, 4);
 	state = new_state;
 
-	new_state = addRoundKey(state, key_schedule, Nr);
+	new_state = addRoundKey(state, key_schedule, Nr, Nb);
 	freeMat(state, 4, 4);
 	state = new_state;
 
@@ -376,8 +368,20 @@ uint8_t* encrypt128(uint8_t* key, uint8_t* plaintext) {
 	return ciphertext;
 }
 
+uint8_t* encrypt128(uint8_t* key, uint8_t* plaintext) {
+	uint16_t Nb = 4;
+	uint16_t Nk = 4;
+	uint16_t Nr = 10;
+	uint8_t* ciphertext = encrypt(key, plaintext, Nb, Nk, Nr);
+	return ciphertext;
+}
+
 uint8_t* encrypt256(uint8_t* key, uint8_t* plaintext) {
-return key;
+	uint16_t Nb = 4;
+	uint16_t Nk = 8;
+	uint16_t Nr = 14;
+	uint8_t* ciphertext = encrypt(key, plaintext, Nb, Nk, Nr);
+	return ciphertext;
 }
 
 uint8_t* decrypt128(uint8_t* key, uint8_t* ciphertext) {
@@ -412,15 +416,6 @@ void pad(uint8_t* in, uint16_t length) {
 		for (int i = length; i < 16; i++) {
 			in[i] = (length & 0xff);
 		}
-	}
-}
-
-uint16_t getLength(uint8_t* out) {
-	if (out[16] == 1) {
-		return 16;
-	}
-	else {
-		return out[15];
 	}
 }
 
