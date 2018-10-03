@@ -2,15 +2,17 @@
 By Matt Prost
 
 ## Instructions For Running
-gcc -o aes aes.c 
+Step 1: gcc -o aes aes.c 
 
-./aes [KEY SIZE] [KEY FILENAME] [INPUT FILENAME] [OUTPUT FILENAME] [MODE]
+Step 2: ./aes [KEY SIZE] [KEY FILENAME] [INPUT FILENAME] [OUTPUT FILENAME] [MODE]
 
 KEY SIZE = {128,256}
 
 MODE = {encrypt,decrypt}
 
 Example:
+
+gcc -o aes aes.c
 
 ./aes 256 key256 input256 output256 encrypt
 ## Encryption
